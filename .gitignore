@@ -1,0 +1,81 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Debug files
+*.pdb
+*.ilk
+*.dSYM/
+
+# Build folders
+[Oo]bj/
+[Bb]in/
+[Ll]ib/
+[Oo]ut/
+[Dd]ebug*/
+[Rr]elease*/
+[xX]64/
+[xX]86/
+[Bb]uild/
+bld/
+[Bb]in/
+[Ll]ib/
+
+# Visual Studio cache/options directory
+.vs/
+*.opendb
+*.VC.db
+
+# Visual Studio project files
+*.vcxproj.user
+*.vcxproj.filters
+*.sdf
+*.suo
+*.user
+*.userosscache
+*.aps 
+
+# Visual Studio Code directory
+.vscode/
+
+# Test files
+*.test
+*.Test
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Exclude the text file
+test.txt
