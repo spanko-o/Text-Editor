@@ -16,6 +16,7 @@ public:
 	void insertText(const std::string& str);
 	void deleteChar();
 	std::string getText() const;
+	std::string getCurrentLine(std::list<char>::iterator it);
 	void clear();
 	int size();
 };

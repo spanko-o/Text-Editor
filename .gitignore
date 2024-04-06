@@ -53,6 +53,7 @@ bld/
 *.VC.db
 
 # Visual Studio project files
+*.vcxproj
 *.vcxproj.user
 *.vcxproj.filters
 *.sdf

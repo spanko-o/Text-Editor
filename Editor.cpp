@@ -34,9 +34,29 @@ void Editor::run() {
 
 void Editor::renderScreen() {
 	screen.clearScreen();
-	std::string content = buffer.getText();
-	std::cout << content;
+	auto lineIt = buffer.text.begin();
+	for (int i = 0; i < scrollTop && lineIt != buffer.text.end(); i++) {//跳过ScrollTop行
+		lineIt = std::find(lineIt, buffer.text.end(), '\n');
+		lineIt++;//到下一行开头
+	}
+	//渲染接下来的行，直到屏幕被填满
+	int lineRendered = 0;
+	while (lineIt != buffer.text.end() && lineRendered < screen.getConsoleSize().second - 1) {
+		printLine(lineIt);
+		if (lineIt != buffer.text.end()) {
+			lineIt = std::find(lineIt, buffer.text.end(), '\n');
+			if (lineIt != buffer.text.end()) {
+				lineIt++;
+			}
+		}
+		lineRendered++;
+	}
 	screen.moveCursor(cursorX, cursorY);
+}
+
+void Editor::printLine(std::list<char>::iterator it) {
+	std::string content = buffer.getCurrentLine(it);
+	std::cout << content << std::endl;
 }
 
 void Editor::handleControlKey(char key) {
@@ -58,51 +78,119 @@ void Editor::handleControlKey(char key) {
 	screen.moveCursor(cursorX, cursorY);
 }
 
-void Editor::onUpKeyPressed() {
-	if (cursorY > 0) {
-		auto lineStart = buffer.iter;
-		auto lineEnd = buffer.iter;
-		//找到当前行的开始
+void Editor::updateIterCursorUp() {
+	auto lineStart = buffer.iter;
+	auto lineEnd = buffer.iter;
+	//找到当前行的开始
+	while (lineStart != buffer.text.begin() && *prev(lineStart) != '\n') {
+		--lineStart;
+	}
+	//如果当前行不是文件第一行，向上找到一行
+	if (lineStart != buffer.text.begin()) {
+		cursorY--;
+		--lineStart;//上一行换行符
+		lineEnd = lineStart;
+		//找到上一行开始
 		while (lineStart != buffer.text.begin() && *prev(lineStart) != '\n') {
 			--lineStart;
 		}
-		//如果当前行不是文件第一行，向上找到一行
-		if (lineStart != buffer.text.begin()) {
-			cursorY--;
-			--lineStart;//上一行换行符
-			lineEnd = lineStart;
-			//找到上一行开始
-			while (lineStart != buffer.text.begin() && *prev(lineStart) != '\n') {
-				--lineStart;
-			}
-		}
+	}
 
-		//计算当前行长度
-		int charNum = 0;
-		int tabAdjustedLength = 0;
-		for (auto it = lineStart; it != lineEnd; it++) {
-			if (*it == '\t') {
-				int nextTabStop = tabWidth - (tabAdjustedLength % tabWidth);
-				charNum++;
-				tabAdjustedLength += nextTabStop;
+	//计算当前行长度
+	int charNum = 0;
+	int tabAdjustedLength = 0;
+	for (auto it = lineStart; it != lineEnd; it++) {
+		if (*it == '\t') {
+			int nextTabStop = tabWidth - (tabAdjustedLength % tabWidth);
+			charNum++;
+			tabAdjustedLength += nextTabStop;
+		}
+		else {
+			++charNum;
+			++tabAdjustedLength;
+		}
+	}
+	//更新iter到上一行的cursorX位置，如果当前位置在制表符中间，移动到制表符末尾
+	int adjustedCursorX = 0;
+	buffer.iter = lineStart;
+	for (int x = 0; x < charNum; x++) {
+		if (adjustedCursorX >= cursorX) { //如果光标已经移动或超过了预期位置（简单说明：cursorX的位置右移是要移动到制表符位置）
+			break;
+		}
+		if (*buffer.iter == '\t') {
+			int nextTabStop = tabWidth - (adjustedCursorX % tabWidth);
+			if (adjustedCursorX + nextTabStop > cursorX) {
+				adjustedCursorX += nextTabStop;
+				++buffer.iter;
+				break;
 			}
 			else {
-				++charNum;
-				++tabAdjustedLength;
+				adjustedCursorX += nextTabStop;
 			}
 		}
-		//更新iter到上一行的cursorX位置，如果当前位置在制表符中间，移动到制表符末尾
+		else {
+			++adjustedCursorX;
+		}
+		++buffer.iter;
+	}
+	//如果上一行长度小于当前cursorX，移动光标到上一行末尾
+	if (tabAdjustedLength < cursorX) {
+		cursorX = tabAdjustedLength;
+	}
+	else {
+		cursorX = adjustedCursorX;
+	}
+}
+
+void Editor::onUpKeyPressed() {
+	if (cursorY > 0) {
+		updateIterCursorUp();
+		if (scrollTop > 0 && cursorY < 3) {
+			scrollTop--;
+			cursorY++;
+			renderScreen();
+		}
+	}
+}
+
+void Editor::updateIterCursorDown() {
+	auto tempIt = buffer.iter;
+	//找到当前行的行尾
+	while (tempIt != buffer.text.end() && *tempIt != '\n') {
+		++tempIt;
+	}
+	//如果行尾不是文件最后一个字符，移动到下一行
+	if (tempIt != buffer.text.end()) {
+		++tempIt;//跳过换行符
+		cursorY++;
+		//计算下一行长度
+		int nextLineLength = 0;
+		int tabAdjustedLength = 0;
+		auto lineStart = tempIt;
+		while (tempIt != buffer.text.end() && *tempIt != '\n') {
+			if (*tempIt == '\t') {
+				int nextTabStop = tabWidth - (tabAdjustedLength % tabWidth);
+				tabAdjustedLength += nextTabStop;
+				nextLineLength += 1;
+			}
+			else {
+				++tabAdjustedLength;
+				++nextLineLength;
+			}
+			++tempIt;
+		}
+		//更新iter到下一行cursorX的位置，如果光标在制表符中间的位置，则移动到尾部
 		int adjustedCursorX = 0;
 		buffer.iter = lineStart;
-		for (int x = 0; x < charNum; x++) {
-			if (adjustedCursorX >= cursorX) { //如果光标已经移动或超过了预期位置（简单说明：cursorX的位置右移是要移动到制表符位置）
+		for (int x = 0; x < nextLineLength; x++) {
+			if (adjustedCursorX >= cursorX) {
 				break;
 			}
 			if (*buffer.iter == '\t') {
 				int nextTabStop = tabWidth - (adjustedCursorX % tabWidth);
 				if (adjustedCursorX + nextTabStop > cursorX) {
 					adjustedCursorX += nextTabStop;
-					++buffer.iter;//这里有问题！
+					++buffer.iter;
 					break;
 				}
 				else {
@@ -110,11 +198,11 @@ void Editor::onUpKeyPressed() {
 				}
 			}
 			else {
-				++adjustedCursorX;
+				adjustedCursorX++;
 			}
 			++buffer.iter;
 		}
-		//如果上一行长度小于当前cursorX，移动光标到上一行末尾
+		//如果下一行长度小于当前cursorX，移动光标到下一行末尾
 		if (tabAdjustedLength < cursorX) {
 			cursorX = tabAdjustedLength;
 		}
@@ -124,65 +212,14 @@ void Editor::onUpKeyPressed() {
 	}
 }
 
-
-
 void Editor::onDownKeyPressed(int consoleHeight) {
 	if (cursorY < consoleHeight - 1) {
-		auto tempIt = buffer.iter;
-		//找到当前行的行尾
-		while (tempIt != buffer.text.end() && *tempIt != '\n') {
-			++tempIt;
-		}
-		//如果行尾不是文件最后一个字符，移动到下一行
-		if (tempIt != buffer.text.end()) {
-			++tempIt;//跳过换行符
-			cursorY++;
-			//计算下一行长度
-			int nextLineLength = 0;
-			int tabAdjustedLength = 0;
-			auto lineStart = tempIt;
-			while (tempIt != buffer.text.end() && *tempIt != '\n') {
-				if (*tempIt == '\t') {
-					int nextTabStop = tabWidth - (tabAdjustedLength % tabWidth);
-					tabAdjustedLength += nextTabStop;
-					nextLineLength += 1;
-				}
-				else {
-					++tabAdjustedLength;
-					++nextLineLength;
-				}
-				++tempIt;
-			}
-			//更新iter到下一行cursorX的位置，如果光标在制表符中间的位置，则移动到尾部
-			int adjustedCursorX = 0;
-			buffer.iter = lineStart;
-			for (int x = 0; x < nextLineLength; x++) {
-				if (adjustedCursorX >= cursorX) {
-					break;
-				}
-				if (*buffer.iter == '\t') {
-					int nextTabStop = tabWidth - (adjustedCursorX % tabWidth);
-					if (adjustedCursorX + nextTabStop > cursorX) {
-						adjustedCursorX += nextTabStop;
-						++buffer.iter;
-						break;
-					}
-					else {
-						adjustedCursorX += nextTabStop;
-					}
-				}
-				else {
-					adjustedCursorX++;
-				}
-				++buffer.iter;
-			}
-			//如果下一行长度小于当前cursorX，移动光标到下一行末尾
-			if (tabAdjustedLength < cursorX) {
-				cursorX = tabAdjustedLength;
-			}
-			else {
-				cursorX = adjustedCursorX;
-			}
+		updateIterCursorDown();
+		//处理屏幕滚动
+		if (cursorY >= consoleHeight - 3 && moreTextBelow()) {
+			++scrollTop;
+			--cursorY;
+			renderScreen();
 		}
 	}
 }
@@ -212,4 +249,9 @@ void Editor::onLeftKeyPressed() {
 		}
 		cursorX = (std::max)(0, cursorX);
 	}
+}
+
+bool Editor::moreTextBelow() {
+	auto it = buffer.iter;
+	return std::find(it, buffer.text.end(), '\n') != buffer.text.end();
 }

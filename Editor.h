@@ -10,6 +10,7 @@ private:
 	Screen screen;
 	std::string openFilename;
 	int cursorX = 0, cursorY = 0;
+	int scrollTop = 0;
 public:
 	Editor(const std::string& filename);
 	void run();
@@ -20,4 +21,9 @@ private:
 	void onDownKeyPressed(int consoleHeight);
 	void onRightKeyPressed(int consoleWidth);
 	void onLeftKeyPressed();
+	void printLine(std::list<char>::iterator it);
+	bool moreTextBelow();
+private:
+	void updateIterCursorDown();
+	void updateIterCursorUp();
 };

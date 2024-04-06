@@ -28,6 +28,18 @@ std::string Buffer::getText() const {
 	return str;
 }
 
+//获取缓冲群当前行内容
+std::string Buffer::getCurrentLine(std::list<char>::iterator it) {
+	auto lineStart= it;
+	auto lineEnd = it;
+
+	while (lineStart != text.begin() && *prev(lineStart) != '\n') {
+		lineStart--;
+	}
+	lineEnd = std::find(it, text.end(), '\n');
+	return std::string(lineStart, lineEnd);
+}
+
 //清空缓冲区
 void Buffer::clear() {
 	text.clear();
