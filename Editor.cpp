@@ -16,18 +16,16 @@ Editor::Editor(const std::string& filename) : openFilename(filename) {
 void Editor::run() {
 	bool isRunning = true;
 	while (isRunning) {
-		if (_kbhit()) {
-			char ch = _getch(); //获取按键
-			//if (ch == 0 || ch == 224) { //特殊按键引导码
-			//	ch = _getch();//获取真正键码
-			handleControlKey(ch);//处理方向键和backspace
-			//}
-			//else if (isprint(ch)) {
-			//	processPrintableChar(ch);
-			//}
-			//else /*if (esc)*/ {
-			//	isRunning = false;
-			//}
+		char ch = _getch(); //获取按键
+		if (ch == -32) {
+			ch = _getch();
+			handleControlKey(ch); //处理按键
+		}
+		else if (ch == 8) {
+			onBackspacePressed();
+		}
+		else {
+			handleCharInput(ch);
 		}
 	}
 }
@@ -54,6 +52,13 @@ void Editor::renderScreen() {
 	screen.moveCursor(cursorX, cursorY);
 }
 
+void Editor::renderLine() {
+	std::string lineContent = buffer.getCurrentLine(buffer.iter);
+	screen.moveCursor(0, cursorY);
+	std::cout << lineContent << std::string(screen.getConsoleSize().first - getPrintableLength(lineContent), ' ');
+	screen.moveCursor(cursorX, cursorY);
+}
+
 void Editor::printLine(std::list<char>::iterator it) {
 	std::string content = buffer.getCurrentLine(it);
 	std::cout << content << std::endl;
@@ -76,6 +81,14 @@ void Editor::handleControlKey(char key) {
 		break;
 	}
 	screen.moveCursor(cursorX, cursorY);
+}
+
+void Editor::handleCharInput(char ch) {
+	if (isprint(ch)) {
+		buffer.insertText(std::string(1, ch));
+		cursorX++;
+		renderLine();
+	}
 }
 
 void Editor::updateIterCursorUp() {
@@ -251,7 +264,26 @@ void Editor::onLeftKeyPressed() {
 	}
 }
 
+void Editor::onBackspacePressed() {
+	buffer.deleteChar();
+	cursorX--;
+	renderLine();
+}
+
 bool Editor::moreTextBelow() {
 	auto it = buffer.iter;
 	return std::find(it, buffer.text.end(), '\n') != buffer.text.end();
+}
+
+size_t Editor::getPrintableLength(const std::string& str) {
+	size_t length = 0;
+	for (char ch : str) {
+		if (ch == '\t') {
+			length += tabWidth - (length % tabWidth);
+		}
+		else {
+			++length;
+		}
+	}
+	return length;
 }
